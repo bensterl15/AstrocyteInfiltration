@@ -20,16 +20,23 @@ logging.basicConfig(level=logging.INFO)
 
 n_samples = 43
 
-data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data_train/"
-val_data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data_val/"
-test_data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data_test/"
+data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data/"
+val_data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data/"
+test_data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data/"
+predict_data_dir = "./" # save the prediction in the model folder
 # result_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_models/model00/"
 
-zarr_name = "Astro_raw_gt_0.zarr"
+zarr_name = "Astro_raw_gt_train_0.zarr"
 zarr_path = os.path.join(data_dir, zarr_name)
 
-val_zarr_name = "Astro_raw_gt_0.zarr"
+val_zarr_name = "Astro_raw_gt_validate_0.zarr"
 val_zarr_path = os.path.join(val_data_dir, zarr_name)
+
+test_zarr_name = "Astro_raw_gt_test_0.zarr"
+test_zarr_path = os.path.join(test_data_dir, zarr_name)
+
+predict_zarr_name = "Astro_predict_0.zarr"
+predict_zarr_path = os.path.join(predict_data_dir, zarr_name)
 
 log_dir = "logs"
 
