@@ -28,20 +28,16 @@ zarr_path = os.path.join(data_dir, zarr_name)
 log_dir = "logs"
 
 # network parameters
-num_fmaps = 32
-input_size = (196, 196)
-output_size = (156, 156)
-input_shape = gp.Coordinate((196, 196))
-output_shape = gp.Coordinate((156, 156))
-
-image_size = (1200, 1200)
-loss_fn = torch.nn.BCELoss()
-metric_fn = lambda x, y: np.sum(np.logical_and(x, y)) / np.sum(np.logical_or(x, y))
+num_fmaps = 16
+input_size = (32, 108, 108)
+output_size = (30, 108, 108)
+input_shape = gp.Coordinate(input_size)
+output_shape = gp.Coordinate(output_size)
 
 
-batch_size = 32  # TODO: increase later
+batch_size = 16  # TODO: increase later
 
-voxel_size = gp.Coordinate((1, 1))  # TODO: change later
+voxel_size = gp.Coordinate((1, 1, 1))  # TODO: change later
 input_size = input_shape * voxel_size
 output_size = output_shape * voxel_size
 
@@ -58,15 +54,16 @@ def mknet():
         num_fmaps=num_fmaps,
         fmap_inc_factor=2,
         downsample_factors=[
-            [2, 2],
-            [2, 2],
+            [1, 2, 2],
+            [1, 2, 2],
+            [2, 2, 2],
         ],
-        kernel_size_down=[[[3, 3], [3, 3]]]*3,
-        kernel_size_up=[[[3, 3], [3, 3]]]*2,
+        kernel_size_down=[[[3, 3, 3], [3, 3, 3]]]*4,
+        kernel_size_up=[[[3, 3, 3], [3, 3, 3]]]*3,
         )
     model = torch.nn.Sequential(
         unet,
-        ConvPass(num_fmaps, 1, [[1, 1]], activation='Sigmoid'),
+        ConvPass(num_fmaps, 1, [[1, 1, 1]], activation='Sigmoid'),
         )
 
     print(model)
@@ -125,8 +122,8 @@ def train(iterations):
     pipeline += gp.SimpleAugment()
     pipeline += gp.ElasticAugment(
         # control_point_spacing=(64, 64),
-        control_point_spacing=(48, 48),
-        jitter_sigma=(5.0, 5.0),
+        control_point_spacing=(48, 48, 48),
+        jitter_sigma=(5.0, 5.0, 5.0),
         rotation_interval=(0, math.pi/2),
         subsample=4,
         )
@@ -138,7 +135,7 @@ def train(iterations):
         shift_max=0.2)
     # pipeline += gp.NoiseAugment(raw, var=0.01)
     # pipeline += gp.NoiseAugment(raw, var=0.001)
-    pipeline += gp.NoiseAugment(raw, var=0.01)
+    pipeline += gp.NoiseAugment(raw, var=0.001)
 
     # raw:          (h, w)
     # affinities:   (2, h, w)

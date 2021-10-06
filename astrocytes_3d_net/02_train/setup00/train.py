@@ -29,14 +29,10 @@ log_dir = "logs"
 
 # network parameters
 num_fmaps = 32
-input_size = (196, 196)
-output_size = (156, 156)
-input_shape = gp.Coordinate((196, 196))
-output_shape = gp.Coordinate((156, 156))
-
-image_size = (1200, 1200)
-loss_fn = torch.nn.BCELoss()
-metric_fn = lambda x, y: np.sum(np.logical_and(x, y)) / np.sum(np.logical_or(x, y))
+input_size = (30, 196, 196)
+output_size = (3, 156, 156)
+input_shape = gp.Coordinate(input_size)
+output_shape = gp.Coordinate(output_size)
 
 
 batch_size = 32  # TODO: increase later
@@ -60,9 +56,10 @@ def mknet():
         downsample_factors=[
             [2, 2],
             [2, 2],
+            [2, 2],
         ],
-        kernel_size_down=[[[3, 3], [3, 3]]]*3,
-        kernel_size_up=[[[3, 3], [3, 3]]]*2,
+        kernel_size_down=[[[3, 3], [3, 3]]]*4,
+        kernel_size_up=[[[3, 3], [3, 3]]]*3,
         )
     model = torch.nn.Sequential(
         unet,

@@ -13,9 +13,9 @@ from skimage import filters
 import matplotlib.pyplot as plt
 import zarr
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.DEBUG)
 
-n_samples = 28
+n_samples = 29
 
 data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data/"
 
@@ -49,14 +49,14 @@ data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data/"
 #f['ground_truth'] = gt_data
 #f['ground_truth'].attrs['resolution'] = (1, 1)
 
-zarr_name = "Astro_raw_gt_0.zarr"
+zarr_name = "Cortex_raw_gt_train_0.zarr"
 zarr_path = os.path.join(data_dir, zarr_name)
 log_dir = "logs"
 
 # network parameters
 num_fmaps = 32
 input_shape = gp.Coordinate((196, 196))
-output_shape = gp.Coordinate((156, 156))
+output_shape = gp.Coordinate((104, 104))
 
 batch_size = 32  # TODO: increase later
 
@@ -64,8 +64,8 @@ voxel_size = gp.Coordinate((1, 1))  # TODO: change later
 input_size = input_shape * voxel_size
 output_size = output_shape * voxel_size
 
-checkpoint_every = 5000
-train_until = 20000
+checkpoint_every = 1000
+train_until = 30000
 snapshot_every = 1000
 zarr_snapshot = False
 num_workers = 11
@@ -84,23 +84,33 @@ num_workers = 11
 #         return loss
 
 
-def train(iterations):
+def mknet():
 
     unet = UNet(
-        in_channels=1,
+        in_channels=2,
         num_fmaps=num_fmaps,
         fmap_inc_factor=2,
         downsample_factors=[
             [2, 2],
             [2, 2],
+            [2, 2],
         ],
-        kernel_size_down=[[[3, 3], [3, 3]]]*3,
-        kernel_size_up=[[[3, 3], [3, 3]]]*2,
+        kernel_size_down=[[[3, 3], [3, 3]]]*4,
+        kernel_size_up=[[[3, 3], [3, 3]]]*3,
         )
     model = torch.nn.Sequential(
         unet,
         ConvPass(num_fmaps, 1, [[1, 1]], activation='Sigmoid'),
         )
+
+    return(model)
+
+
+
+def train(iterations):
+    
+    model = mknet()
+
     #model = unet
     # loss = WeightedMSELoss()
     # loss = torch.nn.L1Loss()
@@ -138,7 +148,7 @@ def train(iterations):
         for i in range(n_samples)
     )
 
-    # raw:      (h, w)
+    # raw:  (2, h, w)
     # gt:   (h, w)
 
     pipeline = sources
@@ -148,33 +158,27 @@ def train(iterations):
     pipeline += gp.ElasticAugment(
         # control_point_spacing=(64, 64),
         control_point_spacing=(48, 48),
-        jitter_sigma=(5.0, 5.0),
+        jitter_sigma=(0.5, 0.5),
         rotation_interval=(0, math.pi/2),
         subsample=4,
         )
     pipeline += gp.IntensityAugment(
         raw,
-        scale_min=0.8,
-        scale_max=1.2,
-        shift_min=-0.2,
-        shift_max=0.2)
+        scale_min=.95,
+        scale_max=1.05,
+        shift_min=-0.05,
+        shift_max=0.05)
     # pipeline += gp.NoiseAugment(raw, var=0.01)
     # pipeline += gp.NoiseAugment(raw, var=0.001)
-    pipeline += gp.NoiseAugment(raw, var=0.01)
+    pipeline += gp.NoiseAugment(raw, var=0.001)
 
-    # raw:          (h, w)
-    # affinities:   (2, h, w)
-    # affs weights: (2, h, w)
+    # raw:          (2, h, w)
 
     # add "channel" dimensions
-    pipeline += gp.Unsqueeze([raw, gt])
-    # pipeline += gp.Unsqueeze([gt])
+    pipeline += gp.Unsqueeze([gt])
 
     # raw:          (1, h, w)
-    # affinities:   (2, h, w)
-    # affs weights: (2, h, w)
 
-    # pipeline += gp.Squeeze([predict], axis=1)
     pipeline += gp.Stack(batch_size)
 
     # raw:          (b, 1, h, w)
@@ -182,6 +186,8 @@ def train(iterations):
     # affs weights: (b, 2, h, w)
 
     pipeline += gp.PreCache(num_workers=num_workers)
+
+    #pipeline += gp.Squeeze([raw])
 
     pipeline += gp.Normalize(gt, factor=1)
 
@@ -205,8 +211,12 @@ def train(iterations):
         log_dir = log_dir,
         save_every=1000)
 
-    #pipeline += gp.Squeeze([raw, gt], axis=1)
-    pipeline += gp.Squeeze([raw, gt, predict], axis=1)
+    # raw:          (b, 2, h, w)
+    pipeline += gp.Squeeze([gt, predict], axis=1)
+
+#    pipeline += gp.Squeeze([raw, gt], axis=1)
+#    pipeline += gp.Squeeze([raw, gt, predict], axis=1)
+#    pipeline += gp.Squeeze([raw])
 
     pipeline += gp.Snapshot({
             gt: 'gt',

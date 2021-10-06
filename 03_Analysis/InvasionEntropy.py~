@@ -1,0 +1,165 @@
+from skimage.measure import shannon_entropy
+import matplotlib.pyplot as plt
+import numpy as np
+import zarr
+import os
+
+base_names = ['test_model_checkpoint_30000_6L.63X.WT_7.5.19_488Ctx_Cy3ast_Cy5elav_2_XY1584844296_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_7.5.19_488Ctx_Cy3ast_Cy5elav_4_XY1584844784_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_7.5.19_488Ctx_Cy3ast_Cy5elav_5_XY1584845301_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_11_XY1584897516_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_1_XY1584892809_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_2_XY1584893430_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_3_XY1584893942_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_4_XY1584894466_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_6_XY1584895096_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_7_XY1584895752_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_8_XY1584896394_Z00_T',
+'test_model_checkpoint_30000_6L.63X.WT_8.31.19_488Ctx_Cy3ast_Cy5elav_9_XY1584896982_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-10_Ctx488_AstroCy3_ElavCy5_20x_1.63X_XY1578694945_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-10_Ctx488_AstroCy3_ElavCy5_20x_1.zarr',
+'test_model_checkpoint_30000_6L_WT_5-10_Ctx488_AstroCy3_ElavCy5_20x_2.63X_XY1578695780_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-10_Ctx488_AstroCy3_ElavCy5_20x_2.zarr',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_1.63X_XY1576792756_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_1.zarr',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_2.63X_XY1576793473_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_2.zarr',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_5.63X_XY1576794283_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_5.zarr',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_6.63X__XY1576794954_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_6.zarr',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_7.63X_XY1576795660_Z00_T',
+'test_model_checkpoint_30000_6L_WT_5-9_Ctx488_AstroCy3_ElavCy5_20x_7.zarr',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_5.30_488Ctx_Cy3ast_Cy5elav_1_XY1578699281_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_5.31.19_488wrap_Cy3alrm_Cy5elav_1_XY1584829666_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_5.31.19_488wrap_Cy3alrm_Cy5elav_2_XY1584830159_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_5.31.19_488wrap_Cy3alrm_Cy5elav_3_XY1584830605_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.4..19_488wrap_Cy3alrm_Cy5elav_1_XY1584832071_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.4..19_488wrap_Cy3alrm_Cy5elav_2_XY1584832576_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.5..19_488wrap_Cy3alrm_Cy5elav_1_XY1584834020_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.5..19_488wrap_Cy3alrm_Cy5elav_2_XY1584834550_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.5..19_488wrap_Cy3alrm_Cy5elav_3_XY1584835362_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.5..19_488wrap_Cy3alrm_Cy5elav_4_XY1584836345_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.5..19_488wrap_Cy3alrm_Cy5elav_5_XY1584836917_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.6.19_488wrap_Cy3alrm_Cy5elav_1_XY1584840031_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.6.19_488wrap_Cy3alrm_Cy5elav_2_XY1584840594_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_6.6.19_488wrap_Cy3alrm_Cy5elav_4_XY1584841224_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.5.19_488wrap_Cy3alrm_Cy5elav_2_XY1584845813_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.5.19_488wrap_Cy3alrm_Cy5elav_3_XY1584846287_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.5.19_488wrap_Cy3alrm_Cy5elav_4_XY1584846767_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.5.19_488wrap_Cy3alrm_Cy5elav_5_XY1584847303_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.5.19_488wrap_Cy3alrm_Cy5elav_6_XY1584848156_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_1_XY1584848953_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_2_XY1584849440_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_3_XY1584850013_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_4_XY1584850915_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_5_XY1584851479_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_6_XY1584851943_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_7.8.19_488wrap_Cy3alrm_Cy5elav_7_XY1584852570_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.29.19_488wrap_Cy3alrm_Cy5elav_1_XY1584853410_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.29.19_488wrap_Cy3alrm_Cy5elav_2_XY1584853988_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.29.19_488wrap_Cy3alrm_Cy5elav_3_XY1584854469_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.29.19_488wrap_Cy3alrm_Cy5elav_4_XY1584855019_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.29.19_488wrap_Cy3alrm_Cy5elav_5_XY1584855491_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.31.19_488wrap_Cy3alrm_Cy5elav_1_XY1584898384_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.31.19_488wrap_Cy3alrm_Cy5elav_2_XY1584898835_Z00_T',
+'test_model_checkpoint_30000_7L.63X.RNAiSpz3_8.31.19_488wrap_Cy3alrm_Cy5elav_3_XY1584899402_Z00_T',
+'test_model_checkpoint_30000_7L_RNAiSpz3_5-9_Ctx488_AstroCy3_ElavCy5_63x_1_XY1578693449_Z00_T',
+'test_model_checkpoint_30000_7L_RNAiSpz3_5-9_Ctx488_AstroCy3_ElavCy5_63x_2_XY1578694145_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_5.30_488Ctx_Cy3ast_Cy5elav_1_XY1578700029_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_5.30_488Ctx_Cy3ast_Cy5elav_2_XY1578700611_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_5.30_488Ctx_Cy3ast_Cy5elav_3_XY1578701086_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_5.31.19_488Ctx_Cy3ast_Cy5elav_1_XY1584831132_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.4.19_488Ctx_Cy3ast_Cy5elav_1_XY1584833140_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.5.19_488Ctx_Cy3ast_Cy5elav_1_XY1584837763_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.5.19_488Ctx_Cy3ast_Cy5elav_3_XY1584838340_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.5.19_488Ctx_Cy3ast_Cy5elav_5_XY1584838872_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.6.19_488Ctx_Cy3ast_Cy5elav_3_XY1584842095_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.6.19_488Ctx_Cy3ast_Cy5elav_6_XY1584842732_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_6.6.19_488Ctx_Cy3ast_Cy5elav_7_XY1584843312_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.29.19_488Ctx_Cy3ast_Cy5elav_1_XY1584856289_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav5_XY1584902216_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_10_XY1584904264_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_11_XY1584904800_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_1_XY1584900193_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_2_XY1584900718_Z00_T',
+'test_model_checkpoint_30000_8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_3_XY1584901244_Z00_T',
+'8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_4_XY1584901738_Z00_T',
+'8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_6_XY1584902686_Z00_T',
+'8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_8_XY1584903240_Z00_T',
+'8L.63X.RNAiaSnap_8.31.19_488Ctx_Cy3ast_Cy5elav_9_XY1584903722_Z00_T',
+'8LaSNAPRNAi5-29_ctx488_astCy3_ElavCy5_20x_1_XY1578697218_Z00_T',
+'8LaSNAPRNAi5-29_ctx488_astCy3_ElavCy5_20x_2_XY1578698197_Z00_T']
+
+#cortex_path = '/mnt/efs/woods_hole/segmeNationData/cortex_net/02_train/setup01/test_model_checkpoint_30000_7L.63X.RNAiSpz3_5.30_488Ctx_Cy3ast_Cy5elav_1_XY1578699281_Z00_T0_C12.zarr'
+#astro_path = '/mnt/efs/woods_hole/segmeNationData/astrocytes_net/02_train/setup04/test_model_checkpoint_44000_7L.63X.RNAiSpz3_5.30_488Ctx_Cy3ast_Cy5elav_1_XY1578699281_Z00_T0_C0.zarr'
+#green_path = '/mnt/efs/woods_hole/segmeNationData/Astro_data/3D/collection/7L.63X.RNAiSpz3_5.30_488Ctx_Cy3ast_Cy5elav_1_XY1578699281_Z00_T0_C12.zarr'
+
+#cortex_root_dir = os.path.dirname(cortex_path)
+#basename = os.path.basename(cortex_path)
+#basename_str = basename[28:-9]
+
+cortex_base_path = '/mnt/efs/woods_hole/segmeNationData/cortex_net/02_train/setup01/'
+astro_base_path = '/mnt/efs/woods_hole/segmeNationData/astrocytes_net/02_train/setup04/'
+green_path_1 = '/mnt/efs/woods_hole/segmeNationData/Astro_data/3D/6L63XStacksNew/'
+green_path_2 = '/mnt/efs/woods_hole/segmeNationData/Astro_data/3D/7L63XStacks/'
+green_path_3 = '/mnt/efs/woods_hole/segmeNationData/Astro_data/3D/8L63XStacks/'
+
+lst = os.listdir(cortex_base_path)
+lst.append(os.listdir(astro_base_path))
+lst.append(os.listdir(green_path_1))
+lst.append(os.listdir(green_path_2))
+lst.append(os.listdir(green_path_3))
+
+def saveIE(cortex_path, astro_path, green_path):
+	cortex = zarr.open(cortex_path, 'r')
+	astro = zarr.open(astro_path, 'r')
+	green = zarr.open(green_path, 'r')
+
+	cortex = cortex['predict']
+	astro = astro['predict']
+	green = green['raw']
+
+	print(np.shape(green))
+
+	M = np.shape(cortex[0])[2]
+	N = np.shape(cortex[0])[3]
+	cortex_arr = np.zeros((len(cortex), M, N))
+
+	for i in range(len(cortex)):
+		cortex_arr[i] = np.squeeze(cortex[i])
+
+	M = np.shape(astro[0])[2]
+	N = np.shape(astro[0])[3]
+	astro_arr = np.zeros((len(astro), M, N))
+
+	for i in range(len(astro)):
+		astro_arr[i] = np.squeeze(astro[i])
+
+
+	M = np.shape(green[0])[1]
+	N = np.shape(green[0])[2]
+	green_arr = np.zeros((len(green), M, N))
+
+	for i in range(len(green)):
+		green_arr[i] = green[i][0]
+
+	cortex_arr[cortex_arr < np.max(cortex_arr)/2] = 0
+	cortex_arr[cortex_arr != 0] = 1
+
+	astro_arr[astro_arr < np.max(astro_arr)/2] = 0
+	astro_arr[astro_arr != 0] = 1
+
+	IS = np.sum( np.logical_and(astro_arr, cortex_arr) ) / np.sum(cortex_arr)
+	ent = shannon_entropy(green_arr)
+
+	out_file = cortex_root_dir + basename_str
+	np.save(out_file, [IS, ent])
+
+	print('IS')
+	print(IS)
+	print('entropy')
+	print(ent)
+
+small_lst = [k for k in lst if 'ab' in k]
+saveIE(small_lst[0], small_lst[1], small_lst[2])

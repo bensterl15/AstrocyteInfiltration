@@ -25,6 +25,7 @@ data_dir = "/mnt/efs/woods_hole/segmeNationData/Astro_data/"
 zarr_name = "Astro_raw_gt_train_0.zarr"
 zarr_path = os.path.join(data_dir, zarr_name)
 
+
 log_dir = "logs"
 
 # network parameters
@@ -45,47 +46,43 @@ voxel_size = gp.Coordinate((1, 1))  # TODO: change later
 input_size = input_shape * voxel_size
 output_size = output_shape * voxel_size
 
-checkpoint_every = 1000
-train_until = 50000
+checkpoint_every = 5000
+train_until = 20000
 snapshot_every = 1000
 zarr_snapshot = False
 num_workers = 11
 
 
-def mknet():
-    unet = UNet(
-        in_channels=1,
-        num_fmaps=num_fmaps,
-        fmap_inc_factor=2,
-        downsample_factors=[
-            [2, 2],
-            [2, 2],
-        ],
-        kernel_size_down=[[[3, 3], [3, 3]]]*3,
-        kernel_size_up=[[[3, 3], [3, 3]]]*2,
-        )
-    model = torch.nn.Sequential(
-        unet,
-        ConvPass(num_fmaps, 1, [[1, 1]], activation='Sigmoid'),
-        )
 
-    print(model)
+unet = UNet(
+    in_channels=1,
+    num_fmaps=num_fmaps,
+    fmap_inc_factor=2,
+    downsample_factors=[
+        [2, 2],
+        [2, 2],
+    ],
+    kernel_size_down=[[[3, 3], [3, 3]]]*3,
+    kernel_size_up=[[[3, 3], [3, 3]]]*2,
+    )
+model = torch.nn.Sequential(
+    unet,
+    ConvPass(num_fmaps, 1, [[1, 1]], activation='Sigmoid'),
+    )
 
-    return(model)
+print(model)
+
+#model = unet
+# loss = WeightedMSELoss()
+# loss = torch.nn.L1Loss()
+loss = torch.nn.BCELoss()
+# optimizer = torch.optim.Adam(lr=1e-5, params=model.parameters())
+optimizer = torch.optim.Adam(lr=5e-5, params=model.parameters())
 
 
 
 def train(iterations):
 
-    model = mknet()
-
-    #model = unet
-    # loss = WeightedMSELoss()
-    # loss = torch.nn.L1Loss()
-    loss = torch.nn.BCELoss()
-    # optimizer = torch.optim.Adam(lr=1e-5, params=model.parameters())
-    optimizer = torch.optim.Adam(lr=5e-5, params=model.parameters())
-    
     raw = gp.ArrayKey('raw')
     gt = gp.ArrayKey('gt')
     predict = gp.ArrayKey('predict')
@@ -199,6 +196,81 @@ def train(iterations):
     with gp.build(pipeline):
         for i in tqdm(range(iterations)):
             pipeline.request_batch(request)
+
+
+
+def predict_single_image(val_zarr_path, file_ind, input_size, output_size, image_size, checkpoint=None):
+    raw = gp.ArrayKey('val_raw')
+    gt = gp.ArrayKey('val_gt')
+    prediction = gp.ArrayKey('val_predict')
+    # gradients = gp.ArrayKey('GRADIENTS')
+
+    request = gp.BatchRequest()
+    request.add(raw, input_size)
+    request.add(gt, output_size)
+
+    snapshot_request = gp.BatchRequest()
+    snapshot_request[prediction] = request[gt].copy()
+
+    source = gp.ZarrSource(
+            val_zarr_path,
+            {
+                raw: f'raw/{file_ind}',
+                gt: f'gt/{file_ind}',
+            },
+            {
+                raw: gp.ArraySpec(interpolatable=True, voxel_size=voxel_size),
+                gt: gp.ArraySpec(interpolatable=False, voxel_size=voxel_size),
+            })
+
+    # normalize
+    normalize = gp.Normalize(raw) 
+
+    # unsqueeze
+    unsqueeze = gp.Unsqueeze([raw])
+
+    # set model into evaluation mode
+    model.eval()
+
+    predict = gp.torch.Predict(
+      model,
+      inputs = {
+        'input': raw
+      },
+      outputs = {
+        0: prediction
+      },
+     checkpoint = checkpoint
+    )
+
+    stack = gp.Stack(1)
+
+    # request matching the model input and output sizes
+    scan_request = gp.BatchRequest()
+    scan_request[raw] = gp.Roi((0, 0), input_size)
+    scan_request[prediction] = gp.Roi((0, 0), output_size)
+
+    scan = gp.Scan(scan_request)
+
+    pipeline = (
+      source +
+      normalize +
+      unsqueeze + 
+      stack +
+      predict +
+      scan)
+
+    # request for raw and prediction for the whole image
+    request = gp.BatchRequest()
+    request[raw] = gp.Roi((0, 0), image_size)
+    # request[gt] = gp.Roi((0, 0), image_size)
+    request[prediction] = gp.Roi((0, 0), image_size)
+
+    with gp.build(pipeline):
+        batch = pipeline.request_batch(request)
+
+    # imshow(batch[raw].data, None, batch[prediction].data)
+    return batch[prediction].data
 
 
 

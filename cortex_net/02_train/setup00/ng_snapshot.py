@@ -1,4 +1,5 @@
 import daisy
+import numpy as np
 import neuroglancer
 import sys
 
@@ -27,16 +28,31 @@ n_batch = 32
 
 #raw key
 raw = daisy.open_ds(f, 'raw')
+raw_tp_arr = np.transpose(raw.to_ndarray(),(1,0,2,3))
+
+
+raw_tp_roi = daisy.Roi((0,) + raw.roi.get_begin(), (n_batch,) + raw.roi.get_shape())
+raw_tp_roi = daisy.Roi((0,) + raw_tp_roi.get_begin(), (2,) + raw_tp_roi.get_shape())
+
 raw.voxel_size = (1, 1, 1)
 raw.roi = daisy.Roi((0,) + raw.roi.get_begin(), (n_batch,) + raw.roi.get_shape())
+
+print(f'raw_tp_roi: {raw_tp_roi}')
+raw_tp = daisy.Array(raw_tp_arr, raw_tp_roi, (1,1,1,1))
+print(raw_tp.shape)
+raw = raw_tp
 
 gt = daisy.open_ds(f, 'gt')
 gt.voxel_size = (1, 1, 1)
 gt.roi = daisy.Roi((0,) + gt.roi.get_begin(), (n_batch,) + gt.roi.get_shape())
 
+print(gt.shape)
+
 predict = daisy.open_ds(f, 'predict')
 predict.voxel_size = (1, 1, 1)
 predict.roi = daisy.Roi((0,) + predict.roi.get_begin(), (n_batch,) + predict.roi.get_shape())
+
+print(predict.shape)
 
 # labels = daisy.open_ds(f, 'volumes/labels/neuron_ids')
 # #gt_myelin_embedding = daisy.open_ds(f, 'volumes/gt_myelin_embedding')

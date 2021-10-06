@@ -1,4 +1,5 @@
 import daisy
+import numpy as np
 import neuroglancer
 import sys
 
@@ -27,16 +28,34 @@ n_batch = 32
 
 #raw key
 raw = daisy.open_ds(f, 'raw')
-raw.voxel_size = (1, 1, 1)
-raw.roi = daisy.Roi((0,) + raw.roi.get_begin(), (n_batch,) + raw.roi.get_shape())
+#raw.voxel_size = (1, 1, 1)
+#raw.roi = daisy.Roi((0,) + raw.roi.get_begin(), (n_batch,) + raw.roi.get_shape())
+
+raw_arr = raw.to_ndarray()
+raw_blue_array = raw_arr[:, 0, :, :]
+raw_green_array = raw_arr[:, 1, :, :]
+
+raw_blue = daisy.Array(raw_blue_array, raw.roi, raw.voxel_size)
+raw_blue.voxel_size = (1, 1, 1)
+raw_blue.roi = daisy.Roi((0,) + raw.roi.get_begin(), (n_batch,) + raw.roi.get_shape())
+
+raw_green = daisy.Array(raw_green_array, raw.roi, raw.voxel_size)
+raw_green.voxel_size = (1, 1, 1)
+raw_green.roi = daisy.Roi((0,) + raw.roi.get_begin(), (n_batch,) + raw.roi.get_shape())
+
+print(raw_green.shape)
 
 gt = daisy.open_ds(f, 'gt')
 gt.voxel_size = (1, 1, 1)
 gt.roi = daisy.Roi((0,) + gt.roi.get_begin(), (n_batch,) + gt.roi.get_shape())
 
+print(gt.shape)
+
 predict = daisy.open_ds(f, 'predict')
 predict.voxel_size = (1, 1, 1)
 predict.roi = daisy.Roi((0,) + predict.roi.get_begin(), (n_batch,) + predict.roi.get_shape())
+
+print(predict.shape)
 
 # labels = daisy.open_ds(f, 'volumes/labels/neuron_ids')
 # #gt_myelin_embedding = daisy.open_ds(f, 'volumes/gt_myelin_embedding')
@@ -87,7 +106,9 @@ with viewer.txn() as s:
     #add(s, daisy.open_ds(f, 'volumes/segmentation_0.400'), '%s_seg_400'%prepend)
     # add(s, daisy.open_ds(f, 'volumes/sparse_segmentation_0.5'), '%s_seg_500'%prepend)
 
-    add_layer(s, [raw], 'raw')
+    #add_layer(s, [raw], 'raw')
+    add_layer(s, [raw_blue], 'raw_blue')
+    add_layer(s, [raw_green], 'raw_green')
     add_layer(s, [predict], 'predict')
     add_layer(s, [gt], 'gt')
     # add_layer(s, gt_affs, 'gt_affs', shader='rgb', visible=False)
